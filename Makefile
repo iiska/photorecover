@@ -8,5 +8,5 @@ all:
 install:
 
 clean:
-	rm $(NAME) *.o
+	rm $(NAME) *.o core
 
