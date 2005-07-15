@@ -114,7 +114,7 @@ void locate_photo() {
 	fseek(image, -2, SEEK_CUR);
 	int i;
 	for(i=0;i<blocksize;i++) {
-		if ( (fgetc(image) + (fgetc(image) << 8)) == 0xFFD9 ) {
+		if ( (fgetc(image) << 8 ) + fgetc(image) == 0xFFD9 ) {
 			if (photo_start != 0) {
 				photo_end = ftell(image);
 		  		printf("Cluster %d (Byte %d): Jpeg-file end\n",
