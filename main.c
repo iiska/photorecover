@@ -31,6 +31,7 @@ long int photo_end = 0;
 
 void locate_photo();
 void save_photo(long int new_start);
+int is_thumbnail();
 void * xmalloc(size_t size);
 void * xrealloc(void *ptr,size_t size);
 
@@ -92,7 +93,7 @@ int main(int argc, char *argv[]) {
 	int i;
 	for (i=datastart; i<blocks; i+=clustersize) {
 		fseek(image,i*blocksize,SEEK_SET);
-		locate_photo();
+		locate_photo(i*blocksize);
 	}
 	
 	fclose(image);
@@ -106,33 +107,37 @@ int main(int argc, char *argv[]) {
  * alku.
  * Vastaavasti 0xFFD9 ilmoittaa tiedoston lopun.
  */
-void locate_photo() {
+void locate_photo(int stream_start) {
 	
 	if ( (fgetc(image) << 8) + fgetc(image) == 0xFFD8 ) {
+		printf("Cluster %d: Jpeg-file start\n",
+				(stream_start) / blocksize / clustersize);
 		if (photo_start == 0) {
-			photo_start = ftell(image)-2;	
-			printf("Cluster %d: Jpeg-file start\n",
-				(photo_start) / blocksize / clustersize);
+			if (is_thumbnail() == 1)
+			  photo_start = stream_start;
+
 		} else {
-			photo_end = ftell(image)-3;
-			printf("Cluster %d: Jpeg-file start\n",
-				(photo_end+1) / blocksize / clustersize);
-			save_photo(photo_end+1);
+			photo_end = stream_start-1;
+			if (is_thumbnail() == 1)
+				save_photo(stream_start);
+			else
+				save_photo(0);
 			
 		}
 	}
 
 	fseek(image, -2, SEEK_CUR);
-	int i;
-	for(i=0;i<blocksize;i++) {
-		if ( (fgetc(image) << 8 ) + fgetc(image) == 0xFFD9 ) {
-			if (photo_start != 0) {
+	if (photo_start != 0) {
+		int i;
+		for(i=0;i<(blocksize*clustersize);i++) {
+			if ( (fgetc(image) << 8 ) + fgetc(image) == 0xFFD9 ) {
 				photo_end = ftell(image);
 		  		printf("Cluster %d (Byte %d): Jpeg-file end\n",
 					(photo_end-i)/blocksize/clustersize, i);
 				save_photo(0);
-			}
-		}	
+				break;
+			}	
+		}
 	}
 }
 
@@ -167,6 +172,55 @@ void save_photo(long int new_start) {
 
 	photo_start = new_start;
 	photo_end = 0;
+}
+
+/* Checks jpeg-dimensions found in current stream position
+ * seeks to the same position in the end and returns 1 if thumbnail
+ * 0 otherwise
+ */
+int is_thumbnail() {
+	int apmarker = (fgetc(image) << 8) + fgetc(image);
+	int c;
+	switch(apmarker) {
+		case 0xFFE0:
+			printf("Jpeg/JFIF image\n");
+			break;
+		case 0xFFE1:
+			printf("Jpeg/Exif image\n");
+			break;
+	}
+	do {
+	do {
+		c = fgetc(image);
+		if (c == EOF) {
+			printf("ERROR: Unexpected end of file!\n");
+			exit(1);
+		}
+	} while(c != 0xFF);
+	do {
+		c = getc (image);
+		if (c == EOF) {
+			printf("ERROR: Unexpected end of file!\n");
+			exit(1);
+		}
+	} while (c == 0xff);
+	if ((c & 0xf0) == 0xc0 && c != 0xc4 && c != 0xcc) {
+		if ( (fgetc(image) << 8) + fgetc(image) < 2 ) {
+			printf("ERROR: erroneous JPEG marker length\n");
+			return 1;
+		}
+		fseek(image,1,SEEK_CUR); // skip precision
+		int h = (fgetc(image) << 8) + fgetc(image);
+		int w = (fgetc(image) << 8) + fgetc(image);
+		if ( (h < 480) || (w < 640) ) {
+			printf("Thumbnail skipped\n");
+			return 0;
+		} else {
+			printf("Jpeg dimensions: %dx%d\n",w,h);
+			return 1;
+		}
+	}
+	} while(1);
 }
 
 void * xmalloc(size_t size) {
