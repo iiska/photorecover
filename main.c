@@ -32,8 +32,13 @@ long int photo_end = 0;
 void locate_photo();
 void save_photo(long int new_start);
 int is_thumbnail();
+int next_jpeg_marker();
 void * xmalloc(size_t size);
 void * xrealloc(void *ptr,size_t size);
+unsigned int read_byte(FILE *stream);
+unsigned int read_msb_word(FILE *stream);
+unsigned int read_lsb_word(FILE *stream);
+void error(char *msg);
 
 int main(int argc, char *argv[]) {
 	if (argc == 2) {
@@ -44,7 +49,7 @@ int main(int argc, char *argv[]) {
 	}
 	/* Määritetään tavut per sektori, 11-12 tavut */
 	fseek(image,11,SEEK_SET);
-	blocksize = fgetc(image) + (fgetc(image) << 8);
+	blocksize = read_lsb_word(image);
 	if ( (blocksize % DBLOCKSIZE != 0) || (blocksize == 0) ) {
 		blocksize = DBLOCKSIZE;
 		printf("Couldn't find blocksize from bootsector. Using default %d\n",
@@ -54,30 +59,30 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Määritetään sektorit per klusteri, 13. tavu */
-	clustersize = fgetc(image);
+	clustersize = read_byte(image);
 	if (clustersize == 0)
 		clustersize = DCLUSTERSIZE;
 	printf("Clustersize: %d\n",clustersize);
 
 	/* Varattujen sektoreiden määrä alussa 14-15 tavut */
-	reservedblocks = fgetc(image) + (fgetc(image) << 8);
+	reservedblocks = read_lsb_word(image);
 	if (reservedblocks == 0)
 		reservedblocks = DRESERVED;
 	printf("Reserved: %d\n",reservedblocks);
 
 	/* FATtien määrä 16. tavu */
-	fatnumber = fgetc(image);
+	fatnumber = read_byte(image);
 	if (fatnumber == 0)
 		fatnumber = DFATN;
 	printf("Fats: %d\n",fatnumber);
 
 	/* Kansiolistausten määrä 17-18, tavut */
-	rootcount = fgetc(image) + (fgetc(image) << 8);
+	rootcount = read_lsb_word(image);
 	printf("Roots: %d\n", rootcount);
 
 	/* Sektoreita per FAT, tavut 22-23 */
 	fseek(image,22,SEEK_SET);
-	fatsize = fgetc(image) + (fgetc(image) << 8);
+	fatsize = read_lsb_word(image);
 	printf("Fatsize: %d\n",fatsize);
 
 	datastart = reservedblocks + (fatnumber * fatsize) + (((rootcount * ROOTSIZE) % blocksize + (rootcount * ROOTSIZE)) / blocksize);
@@ -109,25 +114,27 @@ int main(int argc, char *argv[]) {
  */
 void locate_photo(int stream_start) {
 	
-	if ( (fgetc(image) << 8) + fgetc(image) == 0xFFD8 ) {
+	if ( read_msb_word(image) == 0xFFD8 ) {
 		printf("Cluster %d: Jpeg-file start\n",
 				(stream_start) / blocksize / clustersize);
+		// DEBUG
+		is_thumbnail();
 		if (photo_start == 0) {
-			if (is_thumbnail() == 1)
+			//if (is_thumbnail() == 1)
 			  photo_start = stream_start;
 
 		} else {
 			photo_end = stream_start-1;
-			if (is_thumbnail() == 1)
+			//if (is_thumbnail() == 1)
 				save_photo(stream_start);
-			else
-				save_photo(0);
+			//else
+			//	save_photo(0);
 			
 		}
 	}
 
-	fseek(image, -2, SEEK_CUR);
 	if (photo_start != 0) {
+		fseek(image,stream_start,SEEK_SET);
 		int i;
 		for(i=0;i<(blocksize*clustersize);i++) {
 			if ( (fgetc(image) << 8 ) + fgetc(image) == 0xFFD9 ) {
@@ -158,11 +165,11 @@ void save_photo(long int new_start) {
 		tmp = "damaged_";
 
 	filename = (char *)xmalloc(s);
-	n = snprintf(filename,s,"%s%d.jpg",tmp,(photo_start/blocksize));
+	n = snprintf(filename,s,"%s%d.jpg",tmp,(photo_start/blocksize/clustersize));
 
 	if (n >= s) {
 		filename = (char *)xrealloc(filename,n-s+1);
-		sprintf(filename,"%s%d.jpg",tmp,(photo_start/blocksize));
+		sprintf(filename,"%s%d.jpg",tmp,(photo_start/blocksize/clustersize));
 	}
 
 	FILE *output = fopen(filename,"w");
@@ -179,8 +186,8 @@ void save_photo(long int new_start) {
  * 0 otherwise
  */
 int is_thumbnail() {
-	int apmarker = (fgetc(image) << 8) + fgetc(image);
-	int c;
+	int apmarker = read_msb_word(image);
+	int c,h=0,w=0,t;
 	switch(apmarker) {
 		case 0xFFE0:
 			printf("Jpeg/JFIF image\n");
@@ -189,54 +196,91 @@ int is_thumbnail() {
 			printf("Jpeg/Exif image\n");
 			break;
 	}
-	do {
-	do {
-		c = fgetc(image);
-		if (c == EOF) {
-			printf("ERROR: Unexpected end of file!\n");
-			exit(1);
-		}
-	} while(c != 0xFF);
-	do {
-		c = getc (image);
-		if (c == EOF) {
-			printf("ERROR: Unexpected end of file!\n");
-			exit(1);
-		}
-	} while (c == 0xff);
-	if ((c & 0xf0) == 0xc0 && c != 0xc4 && c != 0xcc) {
-		if ( (fgetc(image) << 8) + fgetc(image) < 2 ) {
-			printf("ERROR: erroneous JPEG marker length\n");
-			return 1;
-		}
-		fseek(image,1,SEEK_CUR); // skip precision
-		int h = (fgetc(image) << 8) + fgetc(image);
-		int w = (fgetc(image) << 8) + fgetc(image);
-		if ( (h < 480) || (w < 640) ) {
-			printf("Thumbnail skipped\n");
-			return 0;
-		} else {
-			printf("Jpeg dimensions: %dx%d\n",w,h);
-			return 1;
+	for(;;) {
+		
+		c = next_jpeg_marker();
+
+		if ((c & 0xf0) == 0xc0 && c != 0xc4 && c != 0xcc) {
+			if ( read_msb_word(image) < 2 ) {
+				printf("ERROR: erroneous JPEG marker length\n");
+				return 1;
+			}
+			read_byte(image); // skip precision
+			t = read_msb_word(image);
+			if (t > h)
+				h = t;
+			t = read_msb_word(image);
+			if (t > w)
+				w = t;
+
+		} else if ( (c == 0xDA) || (c == 0xD9) ) {
+			if ( (h < 480) || (w < 640) ) {
+				printf("Thumbnail skipped (%dx%d)\n",w,h);
+				return 0;
+			} else {
+				printf("Jpeg dimensions: %dx%d\n",w,h);
+				return 1;
+			}
 		}
 	}
-	} while(1);
+}
+
+int next_jpeg_marker() {
+	int c;
+	do {
+		c = read_byte(image);
+	} while(c != 0xFF);
+	do {
+		c = read_byte(image);
+	} while (c == 0xff);
+	return c;
 }
 
 void * xmalloc(size_t size) {
 	register void *val = malloc(size);
-	if (val == 0) {
-		printf("ERROR: not enough virtual memory!\n");
-		exit(1);
-	}
+	if (val == 0)
+		error("not enough virtual memory!");
+	
 	return val;
 }
 
 void * xrealloc(void *ptr, size_t size) {
 	register void *val = realloc(ptr,size);
-	if (val == 0) {
-		printf("ERROR: not enough virtual memory!\n");
-		exit(1);
-	}
+	if (val == 0)
+		error("not enough virtual memory!");
+	
 	return val;
+}
+
+unsigned int read_byte(FILE *stream) {
+	unsigned int c = fgetc(stream);
+
+	if (c == EOF)
+		error("premature end of file");
+
+	return c;
+}
+
+unsigned int read_msb_word(FILE *stream) {
+	unsigned int c = (fgetc(stream) << 8) + fgetc(stream);
+
+	if (c == EOF)
+		error("premature end of file");
+
+	return c;
+}
+
+unsigned int read_lsb_word(FILE *stream) {
+	unsigned int c = fgetc(stream) + (fgetc(stream) << 8);
+
+	if (c == EOF)
+		error("premature end of file");
+
+	return c;
+}
+
+
+void error(char *msg) {
+	printf("ERROR: %s\n",msg);
+	exit(1);
 }
