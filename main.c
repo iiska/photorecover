@@ -10,6 +10,9 @@
 #define DRESERVED 1
 #define DFATN 2
 
+// Files smaller than this are considered as thumbnails
+#define TRESH_KB 150
+
 
 FILE *image;
 
@@ -31,8 +34,6 @@ long int photo_end = 0;
 
 void locate_photo();
 void save_photo(long int new_start);
-int is_thumbnail();
-int next_jpeg_marker();
 void * xmalloc(size_t size);
 void * xrealloc(void *ptr,size_t size);
 unsigned int read_byte(FILE *stream);
@@ -117,19 +118,12 @@ void locate_photo(int stream_start) {
 	if ( read_msb_word(image) == 0xFFD8 ) {
 		printf("Cluster %d: Jpeg-file start\n",
 				(stream_start) / blocksize / clustersize);
-		// DEBUG
-		is_thumbnail();
-		if (photo_start == 0) {
-			//if (is_thumbnail() == 1)
-			  photo_start = stream_start;
 
+		if (photo_start == 0) {
+			  photo_start = stream_start;
 		} else {
 			photo_end = stream_start-1;
-			//if (is_thumbnail() == 1)
-				save_photo(stream_start);
-			//else
-			//	save_photo(0);
-			
+			save_photo(stream_start);
 		}
 	}
 
@@ -153,6 +147,13 @@ void save_photo(long int new_start) {
 	short int s = 16, n;
 	
 	long int count = photo_end-photo_start;
+	if (count < (TRESH_KB * 1024)) {
+		printf("File in clusters %d-%d is thumbnail. Skipping.",
+				photo_start/blocksize/clustersize,
+				photo_end/blocksize/clustersize);
+		photo_start = new_start;
+		return;
+	}
 	unsigned char data[count+1];
 
         fseek(image,photo_start,SEEK_SET);	
@@ -181,60 +182,6 @@ void save_photo(long int new_start) {
 	photo_end = 0;
 }
 
-/* Checks jpeg-dimensions found in current stream position
- * seeks to the same position in the end and returns 1 if thumbnail
- * 0 otherwise
- */
-int is_thumbnail() {
-	int apmarker = read_msb_word(image);
-	int c,h=0,w=0,t;
-	switch(apmarker) {
-		case 0xFFE0:
-			printf("Jpeg/JFIF image\n");
-			break;
-		case 0xFFE1:
-			printf("Jpeg/Exif image\n");
-			break;
-	}
-	for(;;) {
-		
-		c = next_jpeg_marker();
-
-		if ((c & 0xf0) == 0xc0 && c != 0xc4 && c != 0xcc) {
-			if ( read_msb_word(image) < 2 ) {
-				printf("ERROR: erroneous JPEG marker length\n");
-				return 1;
-			}
-			read_byte(image); // skip precision
-			t = read_msb_word(image);
-			if (t > h)
-				h = t;
-			t = read_msb_word(image);
-			if (t > w)
-				w = t;
-
-		} else if ( (c == 0xDA) || (c == 0xD9) ) {
-			if ( (h < 480) || (w < 640) ) {
-				printf("Thumbnail skipped (%dx%d)\n",w,h);
-				return 0;
-			} else {
-				printf("Jpeg dimensions: %dx%d\n",w,h);
-				return 1;
-			}
-		}
-	}
-}
-
-int next_jpeg_marker() {
-	int c;
-	do {
-		c = read_byte(image);
-	} while(c != 0xFF);
-	do {
-		c = read_byte(image);
-	} while (c == 0xff);
-	return c;
-}
 
 void * xmalloc(size_t size) {
 	register void *val = malloc(size);
