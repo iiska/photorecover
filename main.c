@@ -3,28 +3,25 @@
 #include <stdlib.h>
 
 // Bytes
-#define DEFAULTBLOCKSIZE 512
+#define DBLOCKSIZE 512
 #define ROOTSIZE 32
 
-/* Suoraan levyltä luettu 3 tavun sarja, jotka täytyy vielä
- * muuttaa fat12 käyttämään 2 * 12bit muotoon */
-typedef struct {
-	unsigned char a; // 0x(a2)(a3)
-	unsigned char ba;// 0x(b3)(a1)
-	unsigned char b; // 0x(b1)(b2)
-} tmp_fat12_data;
+#define DCLUSTERSIZE 1
+#define DRESERVED 1
+#define DFATN 2
+
 
 FILE *image;
 
 int blocks; // devices block count
-int blocksize = DEFAULTBLOCKSIZE; // bytes per sector
-int clustersize = 1; // sectors per cluster
-int fatnumber = 1; // number of FATs
-int fatsize = 1; // sectors per FAT
-int rootcount = 1; // rootdir entry count
-int datastart = 0; // data area start block
+int blocksize; // bytes per sector
+int clustersize; // sectors per cluster
+int fatnumber; // number of FATs
+int fatsize; // sectors per FAT
+int rootcount; // rootdir entry count
+int datastart; // data area start block
 
-int reservedblocks = 1;
+int reservedblocks;
 
 
 
@@ -34,7 +31,8 @@ long int photo_end = 0;
 
 void locate_photo();
 void save_photo(long int new_start);
-unsigned short int get_12bit_entry(char offset, tmp_fat12_data data);
+void * xmalloc(size_t size);
+void * xrealloc(void *ptr,size_t size);
 
 int main(int argc, char *argv[]) {
 	if (argc == 2) {
@@ -46,16 +44,30 @@ int main(int argc, char *argv[]) {
 	/* Määritetään tavut per sektori, 11-12 tavut */
 	fseek(image,11,SEEK_SET);
 	blocksize = fgetc(image) + (fgetc(image) << 8);
+	if ( (blocksize % DBLOCKSIZE != 0) || (blocksize == 0) ) {
+		blocksize = DBLOCKSIZE;
+		printf("Couldn't find blocksize from bootsector. Using default %d\n",
+				DBLOCKSIZE);
+	} else {
+		printf("Blocksize: %d\n",blocksize);
+	}
 
 	/* Määritetään sektorit per klusteri, 13. tavu */
 	clustersize = fgetc(image);
+	if (clustersize == 0)
+		clustersize = DCLUSTERSIZE;
+	printf("Clustersize: %d\n",clustersize);
 
 	/* Varattujen sektoreiden määrä alussa 14-15 tavut */
 	reservedblocks = fgetc(image) + (fgetc(image) << 8);
+	if (reservedblocks == 0)
+		reservedblocks = DRESERVED;
 	printf("Reserved: %d\n",reservedblocks);
 
 	/* FATtien määrä 16. tavu */
 	fatnumber = fgetc(image);
+	if (fatnumber == 0)
+		fatnumber = DFATN;
 	printf("Fats: %d\n",fatnumber);
 
 	/* Kansiolistausten määrä 17-18, tavut */
@@ -79,7 +91,6 @@ int main(int argc, char *argv[]) {
 	
 	int i;
 	for (i=datastart; i<blocks; i+=clustersize) {
-		printf("Cluster: %X\n", i/clustersize);
 		fseek(image,i*blocksize,SEEK_SET);
 		locate_photo();
 	}
@@ -141,15 +152,16 @@ void save_photo(long int new_start) {
 	else
 		tmp = "damaged_";
 
-	filename = (char *)malloc(s);
+	filename = (char *)xmalloc(s);
 	n = snprintf(filename,s,"%s%d.jpg",tmp,(photo_start/blocksize));
 
 	if (n >= s) {
-		filename = (char *)realloc(filename,n-s+1);
+		filename = (char *)xrealloc(filename,n-s+1);
 		sprintf(filename,"%s%d.jpg",tmp,(photo_start/blocksize));
 	}
 
 	FILE *output = fopen(filename,"w");
+	free(filename);
 	fwrite(&data,sizeof(char),count,output);
 	fclose(output);
 
@@ -157,17 +169,20 @@ void save_photo(long int new_start) {
 	photo_end = 0;
 }
 
-/* offset = 0 tai 1, eli otetaanko ensimmäinen vai toinen 12bit pala
- * tiedostossa: uv wx yz -> 12 bittisenä -> xuv yzw */
-unsigned short int get_12bit_entry(char offset, tmp_fat12_data data) {
-	if (offset == 0) {
-		/* ba & 0x0F -> ba AND 00001111, eli nollaa 4 ensimmäistä
-		 * bittiä */
-		return ( ((data.ba & 0x0F) << 8) + data.a);
-	} else if (offset == 1) {
-		return ( ((data.ba & 0xF0) >> 4) + (data.b << 4) );
+void * xmalloc(size_t size) {
+	register void *val = malloc(size);
+	if (val == 0) {
+		printf("ERROR: not enough virtual memory!\n");
+		exit(1);
 	}
-	else {
-		return 0;
+	return val;
+}
+
+void * xrealloc(void *ptr, size_t size) {
+	register void *val = realloc(ptr,size);
+	if (val == 0) {
+		printf("ERROR: not enough virtual memory!\n");
+		exit(1);
 	}
+	return val;
 }
