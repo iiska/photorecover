@@ -15,6 +15,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
+#define VERSION "0.9.0"
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -58,11 +61,13 @@ unsigned int read_msb_word(FILE *stream);
 unsigned int read_lsb_word(FILE *stream);
 void error(char *msg);
 
+void usage();
+
 int main(int argc, char *argv[]) {
 	if (argc == 2) {
 		image = fopen(argv[1],"r");
 	} else {
-		printf("\nUsage: %s [flash image]\n\n", argv[0]);
+		usage(argv[0]);
 		return 1;
 	}
 	/* Määritetään tavut per sektori, 11-12 tavut */
@@ -262,4 +267,8 @@ unsigned int read_lsb_word(FILE *stream) {
 void error(char *msg) {
 	printf("ERROR: %s\n",msg);
 	exit(1);
+}
+
+void usage(char* cmd) {
+	printf("Photorecover version %s\nUtility to recover erased Jpeg/Exif/Jfif files from a memory card\n\nUsage:\n\t%s [flash image | device file]\n\nReport bugs to <iiska@ee.oulu.fi>\n", VERSION, cmd);
 }

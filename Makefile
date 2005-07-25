@@ -14,5 +14,5 @@ install:
 	cp man/$(NAME).1 $(DESTDIR)/$(prefix)/share/man/man1
 
 clean:
-	rm $(NAME) *.o core
+	rm $(NAME) *.o core > /dev/null 2> /dev/null
 
