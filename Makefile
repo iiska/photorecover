@@ -1,5 +1,5 @@
 
-prefix=/usr/local
+prefix=/usr
 GCC=gcc
 STRIP=strip
 
@@ -10,7 +10,7 @@ all:
 
 install:
 	$(STRIP) $(NAME)
-	cp $(NAME) $(prefix)/bin
+	cp $(NAME) $(DESTDIR)/$(prefix)/bin
 
 clean:
 	rm $(NAME) *.o core

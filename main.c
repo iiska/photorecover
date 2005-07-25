@@ -29,8 +29,9 @@ int reservedblocks;
 
 
 
-long int photo_start = 0;
-long int photo_end = 0;
+unsigned long int photo_start = 0;
+unsigned long int photo_end = 0;
+unsigned long int exif_end = 0;
 
 void locate_photo();
 void save_photo(long int new_start);
@@ -98,8 +99,10 @@ int main(int argc, char *argv[]) {
 	
 	int i;
 	for (i=datastart; i<blocks; i+=clustersize) {
-		fseek(image,i*blocksize,SEEK_SET);
-		locate_photo(i*blocksize);
+		if (exif_end < ((i+1)*blocksize) ) {
+			fseek(image,i*blocksize,SEEK_SET);
+			locate_photo(i*blocksize);
+		}
 	}
 	
 	fclose(image);
@@ -113,7 +116,7 @@ int main(int argc, char *argv[]) {
  * alku.
  * Vastaavasti 0xFFD9 ilmoittaa tiedoston lopun.
  */
-void locate_photo(int stream_start) {
+void locate_photo(unsigned long int stream_start) {
 	
 	if ( read_msb_word(image) == 0xFFD8 ) {
 		printf("Cluster %d: Jpeg-file start\n",
@@ -127,18 +130,31 @@ void locate_photo(int stream_start) {
 		}
 	}
 
-	if (photo_start != 0) {
+	if ( (photo_start != 0) ) {
 		fseek(image,stream_start,SEEK_SET);
-		int i;
-		for(i=0;i<(blocksize*clustersize);i++) {
-			if ( (fgetc(image) << 8 ) + fgetc(image) == 0xFFD9 ) {
-				photo_end = ftell(image);
-		  		printf("Cluster %d (Byte %d): Jpeg-file end\n",
+		int i = 0;
+		do {
+			if (read_byte(image) == 0xFF) {
+				int c = read_byte(image);
+				i++;
+				if ( c == 0xD9) {
+					photo_end = ftell(image);
+		  			printf("Cluster %d (Byte %d): Jpeg-file end\n",
 					(photo_end-i)/blocksize/clustersize, i);
-				save_photo(0);
-				break;
-			}	
-		}
+					save_photo(0);
+					return;
+				} else if (c == 0xE1) {
+					// i+1, koska ensimmäisen if-lauseen
+					// luku huomioidaan vasta silmukan
+					// lopussa
+					exif_end = stream_start + (i+1) +
+						read_msb_word(image) - 2;
+					printf("Found exif-header. Exif-end at %ld\n", exif_end);
+					return;
+				}
+			}
+			i++;
+		} while (i < (blocksize * clustersize));
 	}
 }
 
@@ -148,7 +164,7 @@ void save_photo(long int new_start) {
 	
 	long int count = photo_end-photo_start;
 	if (count < (TRESH_KB * 1024)) {
-		printf("File in clusters %d-%d is thumbnail. Skipping.",
+		printf("File in clusters %d-%d is thumbnail. Skipping.\n",
 				photo_start/blocksize/clustersize,
 				photo_end/blocksize/clustersize);
 		photo_start = new_start;
