@@ -11,6 +11,7 @@ all:
 install:
 	$(STRIP) $(NAME)
 	cp $(NAME) $(DESTDIR)/$(prefix)/bin
+	cp man/$(NAME).1 $(DESTDIR)/$(prefix)/share/man/man1
 
 clean:
 	rm $(NAME) *.o core

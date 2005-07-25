@@ -1,0 +1,24 @@
+.TH photorecover 1 "July 2005" "Photo recover utility"
+
+.SH NAME
+photorecover \- utility to recover erased photos from camera memory card
+
+.SH SYNOPSIS
+photorecover [disk image | device file]
+
+.SH DESCRIPTION
+.PP
+Photorecover tries to restore photos from fat filesystem image or from device containin
+the fat filesystem. Recovered photos are saved to the current working directory.
+.PP
+Filename of the saved photo is damaged_<number>.jpg if the file is only a fragment
+of the original and cluster_<number>.jpg otherwise. <number> is the first cluster used by the photo.
+.PP
+Operation is a little faster if you use the filesystem image. You can make one with program dd.
+
+
+.SH SEE ALSO
+.B dd
+
+.SH AUTHOR
+Juhamatti Niemelä <iiska@ee.oulu.fi>
