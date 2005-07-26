@@ -1,5 +1,5 @@
 
-prefix=/usr
+prefix=/usr/local
 GCC=gcc
 STRIP=strip
 
@@ -10,8 +10,8 @@ all:
 
 install:
 	$(STRIP) $(NAME)
-	cp $(NAME) $(DESTDIR)/$(prefix)/bin
-	cp man/$(NAME).1.gz $(DESTDIR)/$(prefix)/share/man/man1
+	cp $(NAME) $(prefix)/bin
+	cp man/$(NAME).1.gz $(prefix)/share/man/man1
 
 clean:
 	rm $(NAME) *.o core > /dev/null 2> /dev/null

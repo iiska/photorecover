@@ -1,4 +1,4 @@
-
+# Use file Makefile instead, this is only for making Debian packages
 prefix=/usr
 GCC=gcc
 STRIP=strip
