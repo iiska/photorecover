@@ -21,12 +21,12 @@ USAGE
 
   $ photorecover [disk image | device file]
 
-  ie. photorecover /dev/sda1
+  e. photorecover /dev/sda1
   or  photorecover foobar.img
 
 
-Photorecover tries to restore Jpeg/Exif/Jfif files from fat filesystem
-image or from device containin the fat filesystem. Recovered
+Photorecover tries to restore Jpeg/Exif/Jfif files from FAT file system
+image or from device containing the fat file system. Recovered
 photos are saved to the current working directory.
 
 Filename of the saved photo is damaged_<number>.jpg if the
@@ -34,7 +34,7 @@ file is only a fragment of the original and cluster_<number>.jpg
 otherwise. <number> is the first cluster used by the photo.
 
 If you use usb card reader the operation is a little faster if you make
-the filesystem image first instead of reading straight from device file.
+the file system image first instead of reading straight from device file.
 You can make one with program dd.
 
 
