@@ -5,6 +5,9 @@ Version: 0.9.0
 
 Photorecover is a utility to recover Jpeg/Exif/Jfif files from memory card.
 
+Project homepage:
+< http://www.iki.fi/iiska/projects/photorecover/ >
+
 
 INSTALLATION
 
@@ -29,7 +32,8 @@ Filename of the saved photo is damaged_<number>.jpg if the
 file is only a fragment of the original and cluster_<number>.jpg
 otherwise. <number> is the first cluster used by the photo.
 
-Operation is a little faster if you use the filesystem image.
+If you use usb card reader the operation is a little faster if you make
+the filesystem image first instead of reading straight from device file.
 You can make one with program dd.
 
 
@@ -37,15 +41,17 @@ TODO
 
  - At this point photorecover can restore unfragmented files only.
  - Optimization
+ - Translate Finnish source comments
 
 
 AUTHOR
 
 Juhamatti Niemelä <iiska@ee.oulu.fi>
+< http://www.iki.fi/iiska/projects/photorecover/ >
 
 
 CREDITS
 
-Original idea from flashrecover.pl by Camilo Mesias <camilo@mesias.co.uk>
+Inspired by flashrecover.pl by Camilo Mesias <camilo@mesias.co.uk>
 http://littlethorpe.net/photo-recovery.html
 
