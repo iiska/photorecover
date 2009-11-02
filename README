@@ -3,11 +3,10 @@ Photorecover
 
 Version: 0.9.0
 
-Photorecover is a simple utility to recover Jpeg/Exif/Jfif
-files from a memory card.
-
-Project homepage:
-< http://www.iki.fi/iiska/projects/photorecover/ >
+Photorecover is a simple utility to recover Jpeg/Exif/Jfif files from
+a memory card. Though this is a working software, it still was more or
+less for me to experiment recovering photos from FAT -filesystem. For
+real uses I recommend PhotoRec: http://www.cgsecurity.org/wiki/PhotoRec
 
 
 INSTALLATION
@@ -47,12 +46,11 @@ TODO
 
 AUTHOR
 
-Juhamatti Niemelä <iiska@ee.oulu.fi>
-< http://www.iki.fi/iiska/projects/photorecover/ >
+Juhamatti Niemelä <iiska AT iki DOT fi>
 
 
 CREDITS
 
-Inspired by flashrecover.pl by Camilo Mesias <camilo@mesias.co.uk>
+Inspired by flashrecover.pl by Camilo Mesias <camilo AT mesias DOT co DOT uk>
 http://littlethorpe.net/photo-recovery.html
 
