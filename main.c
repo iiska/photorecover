@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#define VERSION "0.9.0"
+#define VERSION "0.9.1"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
 		usage(argv[0]);
 		return 1;
 	}
-	/* Määritetään tavut per sektori, 11-12 tavut */
+        // Define bytes per sector ie. blocksize from bytes 11-12
 	fseek(image,11,SEEK_SET);
 	blocksize = read_lsb_word(image);
 	if ( (blocksize % DBLOCKSIZE != 0) || (blocksize == 0) ) {
@@ -81,29 +81,29 @@ int main(int argc, char *argv[]) {
 		printf("Blocksize: %d\n",blocksize);
 	}
 
-	/* Määritetään sektorit per klusteri, 13. tavu */
+        // Get sectors per cluster count from byte 13
 	clustersize = read_byte(image);
 	if (clustersize == 0)
 		clustersize = DCLUSTERSIZE;
 	printf("Clustersize: %d\n",clustersize);
 
-	/* Varattujen sektoreiden määrä alussa 14-15 tavut */
+        // Number of reserved sectors from bytes 14-15
 	reservedblocks = read_lsb_word(image);
 	if (reservedblocks == 0)
 		reservedblocks = DRESERVED;
 	printf("Reserved: %d\n",reservedblocks);
 
-	/* FATtien määrä 16. tavu */
+        // Number of FATs from byte 16
 	fatnumber = read_byte(image);
 	if (fatnumber == 0)
 		fatnumber = DFATN;
 	printf("Fats: %d\n",fatnumber);
 
-	/* Kansiolistausten määrä 17-18, tavut */
+	// Number of root directory entries from bytes 17-18
 	rootcount = read_lsb_word(image);
 	printf("Roots: %d\n", rootcount);
 
-	/* Sektoreita per FAT, tavut 22-23 */
+	// Number of sectors per FAT from bytes 22-23 */
 	fseek(image,22,SEEK_SET);
 	fatsize = read_lsb_word(image);
 	printf("Fatsize: %d\n",fatsize);
@@ -111,8 +111,8 @@ int main(int argc, char *argv[]) {
 	datastart = reservedblocks + (fatnumber * fatsize) + (((rootcount * ROOTSIZE) % blocksize + (rootcount * ROOTSIZE)) / blocksize);
 	printf("Datastart: %d\n",datastart);
 
-
-	fseek(image,0,SEEK_END); // Siirrytään tiedoston loppuun
+        // Seek to the end of disk image and check sector count
+	fseek(image,0,SEEK_END);
 	blocks = ftell(image) / blocksize;
 	if (ftell(image)%blocksize != 0) {
 		printf("Wrong sector count! Sectors \% blocksize != 0\n");
@@ -130,12 +130,11 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-/* Etsii valokuvan ja tallentaa sen alun ja lopun sijainnin photo_start ja -end
- * -muuttujiin.
+/* Searches photo and assigns it's start and end positions on disk
+ * image to the global variables photo_start and photo_end.
  *
- * Jos sektori alkaa tavuilla 0xFFD8 siinä on todennäköisesti jpeg-tiedoston
- * alku.
- * Vastaavasti 0xFFD9 ilmoittaa tiedoston lopun.
+ * If sector begins with byte sequence 0xFFD8 it probably is start
+ * point of jpeg file and 0xFFD9 are the last bytes in the jpeg file.
  */
 void locate_photo(unsigned long int stream_start) {
 
@@ -274,5 +273,5 @@ void error(char *msg) {
 }
 
 void usage(char* cmd) {
-	printf("Photorecover version %s\nUtility to recover erased Jpeg/Exif/Jfif files from a memory card\n\nUsage:\n\t%s [flash image | device file]\n\nReport bugs to <iiska@ee.oulu.fi>\n", VERSION, cmd);
+	printf("Photorecover version %s\nUtility to recover erased Jpeg/Exif/Jfif files from a memory card\n\nUsage:\n\t%s [flash image | device file]\n\nReport bugs to iiska@iki.fi\n", VERSION, cmd);
 }
