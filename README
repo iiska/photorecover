@@ -46,11 +46,13 @@ TODO
 
 AUTHOR
 
-Juhamatti Niemelä <iiska AT iki DOT fi>
+Juhamatti Niemelä <iiska at iki dot fi>
 
 
 CREDITS
 
-Inspired by flashrecover.pl by Camilo Mesias <camilo AT mesias DOT co DOT uk>
+Inspired by flashrecover.pl by Camilo Mesias <camilo at mesias dot co dot uk>
 http://littlethorpe.net/photo-recovery.html
 
+Bugfix to Cygwin crashes when handling > 2MB jpeg files by
+Jean-Baptiste Nivoit <jbnivoit at gmail dot com>

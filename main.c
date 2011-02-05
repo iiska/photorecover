@@ -10,7 +10,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
@@ -110,14 +110,14 @@ int main(int argc, char *argv[]) {
 
 	datastart = reservedblocks + (fatnumber * fatsize) + (((rootcount * ROOTSIZE) % blocksize + (rootcount * ROOTSIZE)) / blocksize);
 	printf("Datastart: %d\n",datastart);
-	
-	
+
+
 	fseek(image,0,SEEK_END); // Siirrytään tiedoston loppuun
 	blocks = ftell(image) / blocksize;
 	if (ftell(image)%blocksize != 0) {
 		printf("Wrong sector count! Sectors \% blocksize != 0\n");
 	}
-	
+
 	int i;
 	for (i=datastart; i<blocks; i+=clustersize) {
 		if (exif_end < ((i+1)*blocksize) ) {
@@ -125,20 +125,20 @@ int main(int argc, char *argv[]) {
 			locate_photo(i*blocksize);
 		}
 	}
-	
+
 	fclose(image);
 	return 0;
 }
 
 /* Etsii valokuvan ja tallentaa sen alun ja lopun sijainnin photo_start ja -end
  * -muuttujiin.
- *  
+ *
  * Jos sektori alkaa tavuilla 0xFFD8 siinä on todennäköisesti jpeg-tiedoston
  * alku.
  * Vastaavasti 0xFFD9 ilmoittaa tiedoston lopun.
  */
 void locate_photo(unsigned long int stream_start) {
-	
+
 	if ( read_msb_word(image) == 0xFFD8 ) {
 		printf("Cluster %d: Jpeg-file start\n",
 				(stream_start) / blocksize / clustersize);
@@ -182,7 +182,7 @@ void locate_photo(unsigned long int stream_start) {
 void save_photo(long int new_start) {
 	char *filename, *tmp;
 	short int s = 16, n;
-	
+
 	long int count = photo_end-photo_start;
 	if (count < (TRESH_KB * 1024)) {
 		printf("File in clusters %d-%d is thumbnail. Skipping.\n",
@@ -191,10 +191,11 @@ void save_photo(long int new_start) {
 		photo_start = new_start;
 		return;
 	}
-	unsigned char data[count+1];
+	unsigned char *data;
+	data = malloc(count+1);
 
-        fseek(image,photo_start,SEEK_SET);	
-	fread(&data,sizeof(char),count,image);
+        fseek(image,photo_start,SEEK_SET);
+	fread(data,sizeof(char),count,image);
 	fseek(image,-(count * sizeof(char)),SEEK_CUR);
 
 	if (new_start == 0)
@@ -212,8 +213,11 @@ void save_photo(long int new_start) {
 
 	FILE *output = fopen(filename,"w");
 	free(filename);
-	fwrite(&data,sizeof(char),count,output);
+	fwrite(data,sizeof(char),count,output);
 	fclose(output);
+        // TODO: Implement way to keep allocated memory for data
+        // around for multiple iterations to improve performance
+	free(data);
 
 	photo_start = new_start;
 	photo_end = 0;
@@ -224,7 +228,7 @@ void * xmalloc(size_t size) {
 	register void *val = malloc(size);
 	if (val == 0)
 		error("not enough virtual memory!");
-	
+
 	return val;
 }
 
@@ -232,7 +236,7 @@ void * xrealloc(void *ptr, size_t size) {
 	register void *val = realloc(ptr,size);
 	if (val == 0)
 		error("not enough virtual memory!");
-	
+
 	return val;
 }
 
